@@ -1,0 +1,17 @@
+com\ecmmanage\controller\BlockchainControllerTest.class
+com\ecmmanage\config\JwtAuthenticationFilterTest.class
+com\ecmmanage\service\WorkflowEJBServiceTest.class
+com\ecmmanage\ECMManageApplicationTest.class
+com\ecmmanage\model\WorkflowDefinitionTest.class
+com\ecmmanage\service\WorkflowServiceTest.class
+com\ecmmanage\ejb\IBMWorkflowAdapterTest.class
+com\ecmmanage\service\JwtServiceTest.class
+com\ecmmanage\controller\WorkflowControllerTest.class
+com\ecmmanage\model\RoleTest.class
+com\ecmmanage\config\SecurityConfigTest.class
+com\ecmmanage\model\DocumentTest.class
+com\ecmmanage\controller\DocumentControllerTest.class
+com\ecmmanage\controller\AuthControllerTest.class
+com\ecmmanage\ejb\WorkflowProcessorBeanTest.class
+com\ecmmanage\model\WorkflowInstanceTest.class
+com\ecmmanage\model\UserTest.class
