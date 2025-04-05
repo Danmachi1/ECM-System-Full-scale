@@ -1,4 +1,4 @@
-## ECM System - Full-Scale Phase 1.2: Auth, Workflows, Blockchain & More
+## ECM System - Full-Scale Phase 1.2: JUnit Testing, Auth, Workflows, Blockchain & More
 
 ### What’s New in Phase 1.2
 
