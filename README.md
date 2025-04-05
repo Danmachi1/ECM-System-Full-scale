@@ -53,17 +53,6 @@ Each upload supports `title`, `content`, `fileName`, and `metadata` with validat
 
 All endpoints were tested using curl and the following sample tokens:
 
-#### Admin Token
-
-```bash
-eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0FETUlOIl0sInN1YiI6ImFkbWluIiwiaWF0IjoxNzQzODc4NTQ4LCJleHAiOjE3NDM4ODIxNDh9.aqH5p8GrIvx_mT-9r7grV7NUqlQ0aKBoYjQqw6AA7Tw
-```
-
-#### User Token
-
-```bash
-eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX1VTRVIiXSwic3ViIjoiYWxpY2UiLCJpYXQiOjE3NDM4Nzg5NTAsImV4cCI6MTc0Mzg4MjU1MH0.vvCz8CBxs2dahz3yFJhZccpGK7syyAF7PC36oDniPCg
-```
 
 **Sample Test Curl for Upload:**
 
