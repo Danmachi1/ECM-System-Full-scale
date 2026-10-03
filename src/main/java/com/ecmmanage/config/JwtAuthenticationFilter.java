@@ -1,43 +1,28 @@
 package com.ecmmanage.config;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.ecmmanage.service.JwtService;
-
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-/**
- * ✅ JWT Authentication Filter:
- * - Extracts and validates JWT tokens from incoming requests.
- * - Authenticates users based on the token's validity.
- * - Assigns roles to users from the JWT.
- * - Runs **once per request** (`OncePerRequestFilter`).
- */
-@Component
+/** Validates bearer tokens and uses the user's current database authorities. */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
     private static final Logger LOGGER = Logger.getLogger(JwtAuthenticationFilter.class.getName());
-
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
 
-    @Autowired
     public JwtAuthenticationFilter(JwtService jwtService, @Lazy UserDetailsService userDetailsService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
@@ -46,46 +31,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-
-        try {
-            // ✅ Extracts the "Authorization" header from the request.
-            String authHeader = request.getHeader("Authorization");
-
-            // ✅ If the Authorization header is missing or does not start with "Bearer ", skip authentication.
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                chain.doFilter(request, response);
-                return;
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")
+                && SecurityContextHolder.getContext().getAuthentication() == null) {
+            try {
+                String token = header.substring(7);
+                String username = jwtService.extractUsername(token);
+                if (username != null) {
+                    UserDetails user = userDetailsService.loadUserByUsername(username);
+                    if (jwtService.validateToken(token, user)) {
+                        SecurityContextHolder.getContext().setAuthentication(
+                                new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
+                    }
+                }
+            } catch (JwtException | IllegalArgumentException | UsernameNotFoundException e) {
+                SecurityContextHolder.clearContext();
+                LOGGER.fine("Bearer authentication rejected");
             }
-
-            // ✅ Extract the JWT token from the Authorization header.
-            String token = authHeader.substring(7);
-
-            // ✅ Extract the username and roles from the JWT.
-            String username = jwtService.extractUsername(token);
-            List<String> roles = jwtService.extractRoles(token); // ✅ Extract roles from token.
-
-            if (username == null || SecurityContextHolder.getContext().getAuthentication() != null) {
-                chain.doFilter(request, response);
-                return;
-            }
-
-            // ✅ Load user details from the database.
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-            // ✅ Validate the token and assign roles to the user.
-            if (jwtService.validateToken(token, userDetails)) {
-                UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        roles.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList()) // ✅ Assign roles
-                );
-
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-            }
-        } catch (Exception e) {
-            LOGGER.warning("⚠️ Authentication failed: " + e.getMessage());
         }
-
+        // Do not catch downstream failures or run the chain a second time.
         chain.doFilter(request, response);
     }
 }

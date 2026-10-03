@@ -68,4 +68,19 @@ public class WorkflowServiceTest {
         assertEquals("TestWorkflow", startedInstance.getWorkflowName());
         verify(workflowInstanceRepository, times(1)).save(any(WorkflowInstance.class));
     }
+    @Test
+    @org.junit.jupiter.api.Timeout(2)
+    void autoProcessingStopsAtApprovalAndResumesAfterApproval() {
+        WorkflowInstance instance = new WorkflowInstance("TestWorkflow", steps, approvalSteps, automationSteps);
+        when(workflowInstanceRepository.findById(1L)).thenReturn(Optional.of(instance));
+        when(workflowDefinitionRepository.findByWorkflowName("TestWorkflow")).thenReturn(Optional.of(workflowDefinition));
+        workflowService.autoProcessWorkflow(1L);
+        assertEquals("Approval Step", instance.getCurrentStep());
+        assertEquals("AWAITING_APPROVAL", instance.getStatus());
+        workflowService.approveStep(1L);
+        assertEquals("Final Step", instance.getCurrentStep());
+        workflowService.autoProcessWorkflow(1L);
+        assertEquals("COMPLETED", instance.getStatus());
+        assertNotNull(instance.getCompletedAt());
+    }
 }

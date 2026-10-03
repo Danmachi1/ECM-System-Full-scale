@@ -81,7 +81,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body(new AuthResponse("Username already exists"));
         }
 
-        User user = userService.registerUser(request.username(), request.password(), request.role());
+        User user = userService.registerUser(request.username(), request.password(), "USER");
         return ResponseEntity.ok(user);
     }
 
@@ -114,10 +114,11 @@ public class AuthController {
     /**
      * ✅ DTO for register request.
      */
+    // The optional legacy role field is ignored during public registration.
     public record RegisterRequest(
         @NotBlank(message = "Username cannot be empty") String username,
         @NotBlank(message = "Password cannot be empty") String password,
-        @NotBlank(message = "Role cannot be empty") String role
+        String role
     ) {}
 
     /**

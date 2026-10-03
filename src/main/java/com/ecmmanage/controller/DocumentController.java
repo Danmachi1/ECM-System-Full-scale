@@ -50,6 +50,13 @@ public class DocumentController {
                 return ResponseEntity.badRequest().body("{\"error\": \"Content cannot be empty.\"}");
             }
 
+            if (document.getFileName() == null || document.getFileName().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("File name cannot be empty.");
+            }
+            if (document.getId() != null) {
+                return ResponseEntity.badRequest().body("New documents must not supply an ID.");
+            }
+
             // ✅ Save the document.
             Document savedDocument = documentService.saveDocument(document);
             return ResponseEntity.ok(savedDocument);

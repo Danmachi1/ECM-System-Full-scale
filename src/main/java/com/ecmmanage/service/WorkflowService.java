@@ -91,6 +91,7 @@ public class WorkflowService {
             LOGGER.info("Workflow completed: " + instance.getWorkflowName());
         } else {
             String nextStep = steps.get(currentStepIndex + 1);
+            instance.setCurrentStep(nextStep);
 
             // 🔹 Check if next step requires approval
             if (instance.getApprovalRequiredSteps().contains(nextStep)) {

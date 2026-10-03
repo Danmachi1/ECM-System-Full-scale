@@ -2,6 +2,7 @@ package com.ecmmanage.model;
 
 import jakarta.persistence.*;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * ✅ Represents a workflow definition.
@@ -22,6 +23,7 @@ public class WorkflowDefinition {
     @ElementCollection
     @CollectionTable(name = "workflow_steps", joinColumns = @JoinColumn(name = "workflow_id"))
     @Column(name = "step_name")
+    @OrderColumn(name = "step_index")
     private List<String> steps; // 🔹 General workflow steps.
 
     @ElementCollection
@@ -38,9 +40,9 @@ public class WorkflowDefinition {
 
     public WorkflowDefinition(String workflowName, List<String> steps, List<String> approvalSteps, List<String> automationSteps) {
         this.workflowName = workflowName;
-        this.steps = steps;
-        this.approvalSteps = approvalSteps;
-        this.automationSteps = automationSteps;
+        this.steps = new ArrayList<>(steps != null ? steps : List.of());
+        this.approvalSteps = new ArrayList<>(approvalSteps != null ? approvalSteps : List.of());
+        this.automationSteps = new ArrayList<>(automationSteps != null ? automationSteps : List.of());
     }
 
     // ✅ Getters
@@ -52,7 +54,7 @@ public class WorkflowDefinition {
 
     // ✅ Setters
     public void setWorkflowName(String workflowName) { this.workflowName = workflowName; }
-    public void setSteps(List<String> steps) { this.steps = steps; }
-    public void setApprovalSteps(List<String> approvalSteps) { this.approvalSteps = approvalSteps; }
-    public void setAutomationSteps(List<String> automationSteps) { this.automationSteps = automationSteps; }
+    public void setSteps(List<String> steps) { this.steps = new ArrayList<>(steps != null ? steps : List.of()); }
+    public void setApprovalSteps(List<String> approvalSteps) { this.approvalSteps = new ArrayList<>(approvalSteps != null ? approvalSteps : List.of()); }
+    public void setAutomationSteps(List<String> automationSteps) { this.automationSteps = new ArrayList<>(automationSteps != null ? automationSteps : List.of()); }
 }

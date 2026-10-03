@@ -45,11 +45,11 @@ public class UserService implements UserDetailsService {
     }
 
     /**
-     * ✅ Register a new user.
+     * Register a normal user. The legacy role argument never grants privileges.
      */
     public User registerUser(String username, String password, String role) {
         String hashedPassword = passwordEncoder.encode(password);
-        User user = new User(username, hashedPassword, Role.valueOf(role));
+        User user = new User(username, hashedPassword, Role.USER);
         return userRepository.save(user);
     }
 
