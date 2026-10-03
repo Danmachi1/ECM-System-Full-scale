@@ -49,7 +49,7 @@ class JwtAuthenticationFilterTest {
 
         UserDetails userDetails = mock(UserDetails.class);
         when(jwtService.extractUsername("validToken")).thenReturn("testuser");
-        when(jwtService.extractRoles("validToken")).thenReturn(List.of("ROLE_ADMIN"));
+        doReturn(List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))).when(userDetails).getAuthorities();
         when(userDetailsService.loadUserByUsername("testuser")).thenReturn(userDetails);
         when(jwtService.validateToken("validToken", userDetails)).thenReturn(true);
 
@@ -58,5 +58,15 @@ class JwtAuthenticationFilterTest {
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
         assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities()
                    .stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
+    }
+    @Test
+    void downstreamFailureIsPropagatedWithoutRetryingTheChain() throws Exception {
+        jakarta.servlet.FilterChain chain = mock(jakarta.servlet.FilterChain.class);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        doThrow(new ServletException("downstream failure")).when(chain).doFilter(request, response);
+        assertThrows(ServletException.class,
+            () -> jwtAuthenticationFilter.doFilterInternal(request, response, chain));
+        verify(chain, times(1)).doFilter(request, response);
     }
 }

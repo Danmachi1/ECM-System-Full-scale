@@ -81,4 +81,16 @@ public class WorkflowInstanceTest {
         assertFalse(workflowInstance.getAutomationSteps().isEmpty(),
             "Automation steps list should not be empty.");
     }
+    @Test
+    void conditionalTransitionStopsOnApprovalAndCanContinue() {
+        WorkflowInstance instance = new WorkflowInstance("Approval flow",
+            java.util.List.of("Start", "Review", "Finish"), java.util.List.of("Review"), java.util.List.of());
+        assertTrue(instance.moveToNextStepWithConditions());
+        assertEquals("Review", instance.getCurrentStep());
+        assertEquals("Awaiting Approval", instance.getStatus());
+        assertTrue(instance.approveCurrentStep());
+        assertEquals("Finish", instance.getCurrentStep());
+        assertFalse(instance.moveToNextStepWithConditions());
+        assertEquals("Completed", instance.getStatus());
+    }
 }

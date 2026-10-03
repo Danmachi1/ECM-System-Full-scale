@@ -1,100 +1,106 @@
-## ECM System - Full-Scale Phase 1.2: JUnit Testing, Auth, Workflows, Blockchain & More
+# ECM document and workflow API
 
-### What’s New in Phase 1.2
+A Java backend prototype for storing text documents, managing users and running simple approval workflows. It uses Spring Boot, Spring Security, JWT authentication and Spring Data JPA. MySQL is the local application database; automated tests use H2.
 
-Phase 1.2 introduces significant upgrades across the core components of the ECM system. While Phase 1 established foundational features like basic login and document upload, this new release delivers everything needed for full-scale document and workflow management with enterprise-ready security and automation.
+The implementation started on [`Phase-1.2`](https://github.com/Danmachi1/ECM-System-Full-scale/tree/Phase-1.2). This branch adds reproducible tests, focused security fixes and clearer setup instructions.
 
-#### Summary of Key Improvements
+## What it does
 
-| Area                 | Phase 1                        | Phase 1.2 Enhancements                                  |
-|----------------------|--------------------------------|---------------------------------------------------------|
-| Authentication       | Register/Login only            | `/api/user/me`, JWT role parsing, full user context     |
-| User Management      | Minimal                        | Get all users, get by username, delete, update          |
-| Document Handling    | Upload only                    | File name, metadata, validation for all fields          |
-| Workflows            | Not available                  | Start workflow, auto-process, approval logic            |
-| Blockchain Hashing   | Not available                  | Document SHA-256 hashing, tamper-proof validation       |
-| Security             | No role distinction            | Full Spring Security with JWT + role-based access       |
-| Test Coverage        | Basic                          | 46 tests run, 0 failures — backend verified              |
+- Register and sign in with password hashing and signed bearer tokens
+- Read the current user and manage users through admin-restricted list, update and delete endpoints
+- Store text documents with a title, file name and optional metadata
+- Start a three-step workflow, advance to an approval step, approve it and finish processing
+- Import a small line-based `<Step>...</Step>` workflow format
+- Compare SHA-256 hashes through an in-memory integrity-checking demonstration
 
----
+There is no frontend in this repository. The classes in the `ejb` package run as Spring-managed components.
 
-### New API Endpoints
+## Run locally
 
-#### 🔐 User Management
-
-- `GET /api/user/me` – Returns currently authenticated user
-- `GET /api/user/all` – List all users (admin-only)
-- `GET /api/user/by-username/{username}` – Fetch user by username
-- `DELETE /api/user/delete/{id}` – Delete user by ID
-- `PUT /api/user/update/{id}` – Update user info
-
-#### 📄 Document Management
-
-- `POST /documents/upload` – Upload a new document
-- `GET /documents/all` – Retrieve all documents
-
-Each upload supports `title`, `content`, `fileName`, and `metadata` with validation.
-
-#### 🔁 Workflow Execution
-
-- `POST /workflows/start?workflowName=name` – Start workflow
-- `POST /workflows/approve/{workflowId}` – Approve current step
-- `POST /workflows/auto-process/{workflowId}` – Auto-process steps
-- `POST /workflows/upload-ibm-workflow` – Upload IBM workflow file
-
-#### 🔒 Blockchain-Based Document Integrity
-
-- `POST /blockchain/hash/{documentId}?content=...` – Generate and store document hash
-- `GET /blockchain/verify/{documentId}?newContent=...` – Validate document integrity
-
----
-
-### Example Manual Test Commands
-
-All endpoints were tested using curl and the following sample tokens:
-
-
-**Sample Test Curl for Upload:**
+Use a full JDK 17 or newer, Maven 3.9+ and a local MySQL database. Create the `ecm_db` database and a database user with access to it first.
 
 ```bash
-curl -X POST http://localhost:8080/documents/upload -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" -d "{\"title\":\"Sample\",\"fileName\":\"sample.txt\",\"content\":\"Sample content.\"}"
+export DB_USERNAME=ecm
+export DB_PASSWORD='your-local-database-password'
+export JWT_SECRET="$(openssl rand -base64 32)"
+# Optional: export DB_URL=jdbc:mysql://localhost:3306/ecm_db
+mvn spring-boot:run
 ```
 
-**Sample Test Curl for Workflow Start:**
+The server listens on `http://localhost:8080`. `JWT_SECRET` and `DB_PASSWORD` have no built-in defaults. Generate your own signing key; the test fixture key is only for isolated tests. A new signing key invalidates tokens signed with the previous key. Local schema creation uses Hibernate's `ddl-auto=update`; use reviewed migrations before deploying elsewhere. Ordered workflow steps now use a `step_index` column. Use a fresh demo database, or back up and explicitly migrate existing workflow rows before switching an older database to this branch.
+
+## Try the API
+
+Register a normal user:
 
 ```bash
-curl -X POST "http://localhost:8080/workflows/start?workflowName=MyFlow" -H "Authorization: Bearer <TOKEN>"
+curl -X POST http://localhost:8080/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"demo","password":"local-demo-password"}'
 ```
 
-**Blockchain Hash + Verify:**
+Public registration always creates a `USER`. A legacy `role` field is accepted for compatibility but does not grant elevated privileges. There is no public admin-enrollment endpoint; create an admin only through a trusted database administration process for your own local instance.
+
+Sign in:
 
 ```bash
-curl -X POST "http://localhost:8080/blockchain/hash/3?content=Document from admin." -H "Authorization: Bearer <TOKEN>"
-curl -X GET "http://localhost:8080/blockchain/verify/3?newContent=Document from admin." -H "Authorization: Bearer <TOKEN>"
+curl -X POST http://localhost:8080/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"demo","password":"local-demo-password"}'
 ```
 
----
+The response's `message` field contains the JWT. Set `TOKEN` to that value, then create a document:
 
-### Testing Summary
-
-All core components and logic paths have been tested and verified. Every test passed without error:
-
-```
-Tests run: 46, Failures: 0, Errors: 0, Skipped: 0
-BUILD SUCCESS
+```bash
+curl -X POST http://localhost:8080/documents/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Project notes","fileName":"notes.txt","content":"Example text","metadata":"demo"}'
 ```
 
-#### Test Highlights
+Document uploads are JSON text records, not multipart binary-file storage. Title, content and file name must be nonblank; a new upload must not supply an ID.
 
-- ✅ `JwtServiceTest`: JWT creation, parsing, role decoding
-- ✅ `WorkflowProcessorBeanTest`: start, approve, auto-process logic
-- ✅ `UserTest`: role authorities, Spring Security compatibility
-- ✅ Manual curl tests for every endpoint using real tokens
+Start a workflow:
 
----
+```bash
+curl -X POST 'http://localhost:8080/workflows/start?workflowName=Review' \
+  -H "Authorization: Bearer $TOKEN"
+```
 
-### Conclusion
+Use the returned ID with `POST /workflows/auto-process/{id}` to reach the approval step, `POST /workflows/approve/{id}` to advance, and auto-process again to finish.
 
-Phase 1.2 turns the basic framework from Phase 1 into a production-ready ECM backend, complete with secure user access, automated workflows, and document hashing via blockchain. It’s modular, tested, and ready for UI integration or frontend extension.
+## Endpoint reference
 
-Next up in Phase 2: document versioning, audit trails, and other new methods for the controllers
+| Area | Endpoints | Access |
+| --- | --- | --- |
+| Authentication | `POST /auth/register`, `POST /auth/login` | Public |
+| Current user | `GET /api/user/me` | Authenticated |
+| User lookup | `GET /api/user/by-username/{username}` | Authenticated |
+| User administration | `GET /api/user/all`, `PUT /api/user/update/{id}`, `DELETE /api/user/delete/{id}` | Admin |
+| Development cleanup | `DELETE /auth/dev/cleanup?username=...` | Admin |
+| Documents | `POST /documents/upload`, `GET /documents/all` | Authenticated |
+| Workflows | `POST /workflows/start`, `/workflows/auto-process/{id}`, `/workflows/approve/{id}`, `/workflows/upload-ibm-workflow` | Authenticated |
+| Hash demo | `POST /blockchain/hash/{id}?content=...`, `GET /blockchain/verify/{id}?newContent=...` | Authenticated |
+
+User responses omit password hashes. Bearer authentication reads current roles from the database, so a previously issued admin token does not retain admin access after the user's role changes.
+
+## Tests
+
+```bash
+mvn clean verify
+```
+
+Tests include JUnit/Mockito unit cases and Spring Boot/MockMvc integration cases backed by H2. They cover registration role restrictions, password-response serialization, admin authorization, stale-role tokens, malformed tokens, document validation and the approval workflow. Test resources live under `src/test/resources`; no running MySQL server is required for the tests.
+
+See [verification notes](docs/verification.md) for the exact environment, command, results and remaining limits. Generated jars, classes and test reports belong in ignored `target/`, not source control.
+
+## Scope and limitations
+
+This is a portfolio backend prototype, not a production deployment:
+
+- Document and workflow access is shared among authenticated users. Tenant isolation, per-document ownership and assigned approvers are not implemented
+- The `/blockchain` routes use a replaceable in-memory map of hashes. There is no distributed ledger, immutable audit trail or persistent hash storage; values are lost on restart
+- The IBM-named upload adapter reads individual `<Step>` lines and infers approval/automation from names. It is not a validated IBM workflow integration or general XML/XPD parser
+- Versioning, durable audit logging, comprehensive input/error handling, rate limiting and a frontend remain future work
+- MySQL behavior, live deployment, external IBM systems, load capacity and a complete security audit are outside the automated verification here
+- Spring Boot 3.2.3 and other dependencies remain at their existing versions; review and update them before a real deployment

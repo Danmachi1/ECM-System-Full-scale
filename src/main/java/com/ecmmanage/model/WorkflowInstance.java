@@ -3,6 +3,7 @@ package com.ecmmanage.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * ✅ Represents a workflow execution instance.
@@ -24,6 +25,7 @@ public class WorkflowInstance {
     private LocalDateTime completedAt;
 
     @ElementCollection
+    @OrderColumn(name = "step_index")
     private List<String> workflowSteps; // 🔹 Defines the sequence of steps.
 
     @ElementCollection
@@ -39,9 +41,9 @@ public class WorkflowInstance {
             throw new IllegalArgumentException("Workflow steps cannot be empty.");
         }
         this.workflowName = workflowName;
-        this.workflowSteps = workflowSteps;
-        this.approvalRequiredSteps = approvalRequiredSteps != null ? approvalRequiredSteps : List.of();
-        this.automationSteps = automationSteps != null ? automationSteps : List.of();
+        this.workflowSteps = new ArrayList<>(workflowSteps);
+        this.approvalRequiredSteps = new ArrayList<>(approvalRequiredSteps != null ? approvalRequiredSteps : List.of());
+        this.automationSteps = new ArrayList<>(automationSteps != null ? automationSteps : List.of());
         this.currentStep = workflowSteps.get(0);
         this.status = "Pending";
         this.startedAt = LocalDateTime.now();
@@ -76,6 +78,7 @@ public class WorkflowInstance {
         }
         
         String nextStep = workflowSteps.get(index + 1);
+        this.currentStep = nextStep;
         
         if (approvalRequiredSteps.contains(nextStep)) {
             this.status = "Awaiting Approval";
